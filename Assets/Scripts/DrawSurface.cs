@@ -180,8 +180,4 @@ public class DrawSurface : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
             line.SetPosition(i, new Vector3(stroke.points[i].x, stroke.points[i].y, -0.5f));
         }
     }
-
-    
-    
-
 }

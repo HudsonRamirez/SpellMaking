@@ -107,4 +107,65 @@ public class StrokeGeometryAnalyzer
         // TODO: Analyze curvature oscillation
         return false;
     }
+
+    // --- RDP Simplification Helper ---
+
+    /// <summary>
+    /// Simplifies a stroke using the Ramer–Douglas–Peucker algorithm.
+    /// </summary>
+    /// <param name="stroke">The input stroke to simplify.</param>
+    /// <param name="epsilon">Tolerance: higher = more aggressive simplification.</param>
+    /// <returns>A new simplified Stroke.</returns>
+    public Stroke SimplifyStroke(Stroke stroke, float epsilon)
+    {
+        if (stroke == null || stroke.points == null || stroke.points.Count < 3)
+            return stroke;
+
+        List<Vector2> simplifiedPoints = RamerDouglasPeucker(stroke.points, epsilon);
+        return new Stroke { points = simplifiedPoints };
+    }
+
+    private List<Vector2> RamerDouglasPeucker(List<Vector2> points, float epsilon)
+    {
+        int startIndex = 0;
+        int endIndex = points.Count - 1;
+
+        float maxDistance = 0f;
+        int indexFarthest = 0;
+
+        for (int i = startIndex + 1; i < endIndex; i++)
+        {
+            float distance = PerpendicularDistance(points[i], points[startIndex], points[endIndex]);
+            if (distance > maxDistance)
+            {
+                maxDistance = distance;
+                indexFarthest = i;
+            }
+        }
+
+        if (maxDistance > epsilon)
+        {
+            var left = RamerDouglasPeucker(points.GetRange(startIndex, indexFarthest - startIndex + 1), epsilon);
+            var right = RamerDouglasPeucker(points.GetRange(indexFarthest, endIndex - indexFarthest + 1), epsilon);
+
+            left.RemoveAt(left.Count - 1); // Avoid duplicate
+            left.AddRange(right);
+            return left;
+        }
+        else
+        {
+            return new List<Vector2> { points[startIndex], points[endIndex] };
+        }
+    }
+
+    private float PerpendicularDistance(Vector2 point, Vector2 lineStart, Vector2 lineEnd)
+    {
+        if (lineStart == lineEnd)
+            return Vector2.Distance(point, lineStart);
+
+        Vector2 dir = lineEnd - lineStart;
+        Vector2 projected = lineStart + Vector2.Dot(point - lineStart, dir) / dir.sqrMagnitude * dir;
+        return Vector2.Distance(point, projected);
+    }
+
 }
