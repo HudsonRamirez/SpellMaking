@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+// using System.Numerics;
 using UnityEngine;
 
 public class GeometryDebugger : MonoBehaviour
@@ -11,8 +13,10 @@ public class GeometryDebugger : MonoBehaviour
 
     public void OnAnalyzeButtonClicked()
     {
+        // Evaluate each stroke
         foreach (Stroke stroke in drawSurface.committedStrokes)
         {
+            // Straight line segment check
             if (analyzer.ContainsLine(stroke))
             {
                 Debug.Log("Stroke contains straight segment");
@@ -20,6 +24,22 @@ public class GeometryDebugger : MonoBehaviour
             else
             {
                 Debug.Log("Stroke does not contain straight segment");
+            }
+
+            // Right angle check
+            analyzer.ContainsRightAngle(stroke);
+
+            // Check for self intersections and output to debug how many there are
+            List<(Vector2 point, Vector2 dir1, Vector2 dir2)> strokeSelfIntersections = analyzer.GetSelfIntersections(stroke);
+            int selfIntersectionCount = strokeSelfIntersections.Count;
+            if (selfIntersectionCount > 0)
+            {
+                Debug.Log($"Stroke self intersects {selfIntersectionCount} times.");
+
+                foreach ((Vector2 point, Vector2 dir1, Vector2 dir2) selfIntersection in strokeSelfIntersections)
+                {
+                    CreatePointMarker(selfIntersection.point);
+                }
             }
         }
     }

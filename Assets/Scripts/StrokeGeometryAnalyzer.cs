@@ -42,70 +42,51 @@ public class StrokeGeometryAnalyzer
         return false;
     }
 
-    // Returns true if the stroke approximates a circular or elliptical arc.
-    public bool IsArc(Stroke stroke)
+    public bool ContainsRightAngle(Stroke stroke, float angleTolerance = 5f)
     {
-        // TODO: Implement circular arc detection
-        return false;
-    }
+        int rightAngleCount = 0;
 
-    // Returns true if the stroke forms a closed shape.
-    public bool IsClosed(Stroke stroke)
-    {
-        // TODO: Check if start and end points are close enough
-        return false;
-    }
+        Stroke simpleStroke = SimplifyStroke(stroke, 10f);
 
-    // Returns true if the stroke exhibits symmetry across any axis.
-    public bool IsSymmetrical(Stroke stroke)
-    {
-        // TODO: Reflect and compare stroke halves
-        return false;
-    }
+        if (simpleStroke.points.Count < 3)
+        {
+            Debug.Log("Not enough points to evaluate right angles.");
+            return false;
+        }
 
-    // Returns true if the stroke has one or more sharp corners.
-    public bool HasCorners(Stroke stroke)
-    {
-        // TODO: Implement corner/inflection point detection
-        return false;
-    }
+        for (int i = 1; i < simpleStroke.points.Count - 1; i++)
+        {
+            Vector2 A = simpleStroke.points[i - 1];
+            Vector2 B = simpleStroke.points[i];
+            Vector2 C = simpleStroke.points[i + 1];
 
+            Vector2 AB = (A - B).normalized;
+            Vector2 CB = (C - B).normalized;
 
-    // Returns true if the stroke loops or intersects with itself.
+            float dot = Vector2.Dot(AB, CB); // Cosine of the angle
+            float angle = Mathf.Acos(dot) * Mathf.Rad2Deg;
 
-    public bool HasSelfIntersection(Stroke stroke)
-    {
-        // TODO: Check for self-intersections
-        return false;
-    }
+            if (Mathf.Abs(angle - 90f) <= angleTolerance)
+            {
+                rightAngleCount++;
+            }
+        }
 
-    // Returns the axis-aligned bounding box aspect ratio.
-    public float GetAspectRatio(Stroke stroke)
-    {
-        // TODO: Calculate bounding box and return width / height
-        return 1f;
-    }
+        // Check self-intersections
+        var intersections = GetSelfIntersections(stroke);
+        foreach (var (point, dir1, dir2) in intersections)
+        {
+            float angle = Mathf.Acos(Vector2.Dot(dir1, dir2)) * Mathf.Rad2Deg;
 
-    // Returns the overall direction of the stroke in degrees (0–360).
-    public float GetAverageDirection(Stroke stroke)
-    {
-        // TODO: Compute net vector and angle
-        return 0f;
-    }
+            if (Mathf.Abs(angle - 90f) <= angleTolerance)
+            {
+                rightAngleCount++;
+            }
+        }
 
-    // Returns the signed area enclosed by the stroke (0 if not closed).
+        Debug.Log($"Right angles found: {rightAngleCount}");
 
-    public float GetEnclosedArea(Stroke stroke)
-    {
-        // TODO: Use shoelace formula if stroke is closed
-        return 0f;
-    }
-
-    // Returns true if the stroke has a wave or zig-zag pattern.
-    public bool IsWavy(Stroke stroke)
-    {
-        // TODO: Analyze curvature oscillation
-        return false;
+        return rightAngleCount > 0;
     }
 
     // --- RDP Simplification Helper ---
@@ -167,5 +148,64 @@ public class StrokeGeometryAnalyzer
         Vector2 projected = lineStart + Vector2.Dot(point - lineStart, dir) / dir.sqrMagnitude * dir;
         return Vector2.Distance(point, projected);
     }
+
+    
+    public List<(Vector2 point, Vector2 dir1, Vector2 dir2)> GetSelfIntersections(Stroke stroke)
+    {
+        var intersections = new List<(Vector2, Vector2, Vector2)>();
+        var pts = stroke.points;
+
+        for (int i = 0; i < pts.Count - 1; i++)
+        {
+            Vector2 p1 = pts[i];
+            Vector2 p2 = pts[i + 1];
+
+            for (int j = i + 2; j < pts.Count - 1; j++)
+            {
+                // Skip adjacent segments
+                if (j == i + 1) continue;
+
+                Vector2 p3 = pts[j];
+                Vector2 p4 = pts[j + 1];
+
+                if (LineSegmentsIntersect(p1, p2, p3, p4, out Vector2 intersection))
+                {
+                    Vector2 dir1 = (p2 - p1).normalized;
+                    Vector2 dir2 = (p4 - p3).normalized;
+                    intersections.Add((intersection, dir1, dir2));
+                }
+            }
+        }
+
+        return intersections;
+    }
+
+    private bool LineSegmentsIntersect(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4, out Vector2 intersection)
+    {
+        intersection = Vector2.zero;
+
+        float d = (p1.x - p2.x) * (p3.y - p4.y) - 
+                (p1.y - p2.y) * (p3.x - p4.x);
+
+        if (Mathf.Abs(d) < Mathf.Epsilon)
+            return false; // Lines are parallel or coincident
+
+        float pre = (p1.x * p2.y - p1.y * p2.x);
+        float post = (p3.x * p4.y - p3.y * p4.x);
+        float x = (pre * (p3.x - p4.x) - (p1.x - p2.x) * post) / d;
+        float y = (pre * (p3.y - p4.y) - (p1.y - p2.y) * post) / d;
+        intersection = new Vector2(x, y);
+
+        // Check if the intersection is within both segments
+        if (x < Mathf.Min(p1.x, p2.x) - Mathf.Epsilon || x > Mathf.Max(p1.x, p2.x) + Mathf.Epsilon ||
+            x < Mathf.Min(p3.x, p4.x) - Mathf.Epsilon || x > Mathf.Max(p3.x, p4.x) + Mathf.Epsilon ||
+            y < Mathf.Min(p1.y, p2.y) - Mathf.Epsilon || y > Mathf.Max(p1.y, p2.y) + Mathf.Epsilon ||
+            y < Mathf.Min(p3.y, p4.y) - Mathf.Epsilon || y > Mathf.Max(p3.y, p4.y) + Mathf.Epsilon)
+            return false;
+
+        return true;
+    }
+
+
 
 }

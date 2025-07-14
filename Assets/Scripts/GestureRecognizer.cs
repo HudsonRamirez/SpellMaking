@@ -17,13 +17,13 @@ public class GestureRecognizer : MonoBehaviour
     public Gesture Recognize()
     {
 
-        if (drawSurface.completedStrokes.Count == 0)
+        if (drawSurface.committedStrokes.Count == 0)
         {
             Debug.Log("No drawing is pending recognition.");
             return null;
         }
 
-        Stroke lastStroke = drawSurface.completedStrokes[^1];   // For now should only ever be one completed stroke
+        Stroke lastStroke = drawSurface.committedStrokes[^1];   // For now only do the last stroke
 
         if (lastStroke == null || lastStroke.points.Count == 0)
         {

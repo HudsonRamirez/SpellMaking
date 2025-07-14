@@ -17,16 +17,17 @@ public class GestureSaveManager : MonoBehaviour
             return;
         }
 
-        if (drawSurface.completedStrokes.Count == 0)
+        if (drawSurface.committedStrokes.Count == 0)
         {
             Debug.LogError("No stroke on canvas.");
+            return;
         }
 
         var recognizer = new PointCloudRecognizer();
 
         List<Stroke> savedStrokes = new List<Stroke>();
 
-        foreach (Stroke stroke in drawSurface.completedStrokes)     // For now this is only one stroke
+        foreach (Stroke stroke in drawSurface.committedStrokes)     // This will break things if more than one committed stroke exists!
         {
             // Normalize points
             List<Vector2> normalizedPoints = recognizer.ScaleToSquare(
